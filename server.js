@@ -59,9 +59,9 @@ app.post("/signup", async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong ❌" });
-  }
+  console.error("Signup Error:", err);
+  res.status(500).json({ error: err.message });
+}
 });
 
 // Login
