@@ -10,13 +10,17 @@ app.use(express.json());
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-     rejectUnauthorized: false },
+    rejectUnauthorized: false,
+  },
 });
 
 pool.connect()
-pool.connect()
   .then(() => {
     console.log("Database Connected ✅");
+  })
+  .catch(err => {
+    console.error("Database connection error:", err);
+  });
 
     return pool.query(`
       CREATE TABLE IF NOT EXISTS users (
