@@ -2,6 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 app.use(cors());
@@ -10,19 +12,13 @@ app.use(express.json());
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+
+// Connect + Create table
 pool.connect()
-  .then(() => {
-    console.log("Database Connected ✅");
-  })
-  .catch(err => {
-    console.error("Database connection error:", err);
-  });
-
-    pool.connect()
-  .then(() => {
+  .then(async () => {
     console.log("Database Connected ✅");
 
-    return pool.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100),
@@ -31,22 +27,18 @@ pool.connect()
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-  })
-  .then(() => {
+
     console.log("Users table ready ✅");
   })
   .catch(err => {
-    console.error("Database error:", err);
+    console.error("Database error ❌", err);
   });
-  .then(() => console.log("Users table ready ✅"))
-  .catch(err => console.error("DB Error ❌", err));
 
 app.get("/", (req, res) => {
   res.send("Netflix Backend Running 🚀");
 });
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
+// Signup
 app.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -68,6 +60,8 @@ app.post("/signup", async (req, res) => {
     res.status(500).json({ error: "Something went wrong ❌" });
   }
 });
+
+// Login
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -90,14 +84,24 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid password" });
     }
 
-    res.json({ message: "Login successful ✅" });
+    const token = jwt.sign(
+      { id: user.rows[0].id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      message: "Login successful ✅",
+      token
+    });
 
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 });
-// 🔐 JWT Middleware
+
+// JWT Middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
 
@@ -106,10 +110,6 @@ const authenticateToken = (req, res, next) => {
   }
 
   const token = authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ message: "Token missing ❌" });
-  }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
@@ -120,7 +120,8 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
-// 🔐 Protected Dashboard Route
+
+// Protected Route
 app.get("/dashboard", authenticateToken, (req, res) => {
   res.json({
     message: "Welcome to your dashboard 🎉",
@@ -128,35 +129,6 @@ app.get("/dashboard", authenticateToken, (req, res) => {
   });
 });
 
-
-// 👇 PASTE LOGIN ROUTE HERE
-app.post("/api/auth/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const user = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
-    );
-
-    if (user.rows.length === 0) {
-      return res.status(400).json({ message: "User not found" });
-    }
-
-    if (user.rows[0].password !== password) {
-      return res.status(400).json({ message: "Invalid password" });
-    }
-
-    res.json({ message: "Login successful" });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-
-// DO NOT TOUCH THIS
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
