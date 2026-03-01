@@ -22,6 +22,10 @@ pool.connect()
     console.error("Database connection error:", err);
   });
 
+    pool.connect()
+  .then(() => {
+    console.log("Database Connected ✅");
+
     return pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -32,6 +36,12 @@ pool.connect()
       );
     `);
   })
+  .then(() => {
+    console.log("Users table ready ✅");
+  })
+  .catch(err => {
+    console.error("Database error:", err);
+  });
   .then(() => console.log("Users table ready ✅"))
   .catch(err => console.error("DB Error ❌", err));
 
